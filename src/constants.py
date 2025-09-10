@@ -1,0 +1,46 @@
+COLUNAS_SELECIONADAS = [
+    'co_paciente',
+    'tp_sexo_paciente',
+    'nu_idade_paciente',
+    'no_raca_cor_paciente',
+    'co_municipio_paciente',
+    'no_municipio_paciente',
+    'co_cnes_estabelecimento',
+    'co_municipio_estabelecimento',
+    'no_municipio_estabelecimento',
+    'sg_uf_estabelecimento',
+    'co_vacina',
+    'sg_vacina',
+    'dt_vacina',
+    'ds_vacina',
+    'co_dose_vacina',
+    'ds_dose_vacina',
+    'co_local_aplicacao',
+    'ds_local_aplicacao',
+    'co_estrategia_vacinacao',
+    'ds_estrategia_vacinacao',
+]
+
+DTYPES_COLUNAS_SELECIONADAS = {
+    'co_paciente': 'category',
+    'tp_sexo_paciente': 'category',
+    'nu_idade_paciente': 'Int64',
+    'no_raca_cor_paciente': 'category',
+    'co_municipio_paciente': 'category',
+    'no_municipio_paciente': 'category',
+    'co_cnes_estabelecimento': 'category',
+    'co_municipio_estabelecimento': 'category',
+    'no_municipio_estabelecimento': 'category',
+    'sg_uf_estabelecimento': 'category',
+    'co_vacina': 'category',
+    'sg_vacina': 'category',
+    'ds_vacina': 'category',
+    'co_dose_vacina': 'category',
+    'ds_dose_vacina': 'category',
+    'co_local_aplicacao': 'category',
+    'ds_local_aplicacao': 'category',
+    'co_estrategia_vacinacao': 'category',
+    'ds_estrategia_vacinacao': 'category'
+}
+
+PARSE_DATES_COLUNAS_SELECIONADAS = ['dt_vacina']
