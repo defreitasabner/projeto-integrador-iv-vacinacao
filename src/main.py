@@ -1,8 +1,7 @@
 import logging
 
-from settings import criar_diretorios
-from pipelines import pipeline_baixa_filtra_por_uf_sp
-from download import baixar_arquivo_zip_datasus
+import settings
+import pipelines
 
 logging.basicConfig(
     level = logging.INFO,
@@ -11,10 +10,11 @@ logging.basicConfig(
     #filemode='a'
 )
 
+logger = logging.getLogger(__name__)
+
 def main():
-    criar_diretorios()
-    pipeline_baixa_filtra_por_uf_sp()
-    #processar_dados_de_sp('vacinacao_jan_2021.csv')
+    settings.criar_estrutura_de_diretorios()
+    pipelines.baixar_e_processar_todos_dados_aplicando_filtragem_inicial()
 
 if __name__ == '__main__':
     main()

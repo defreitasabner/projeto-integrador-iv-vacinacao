@@ -1,4 +1,4 @@
-COLUNAS_SELECIONADAS = [
+COLUNAS_SELECIONADAS: list[str] = [
     'co_paciente',
     'tp_sexo_paciente',
     'nu_idade_paciente',
@@ -21,7 +21,7 @@ COLUNAS_SELECIONADAS = [
     'ds_estrategia_vacinacao',
 ]
 
-DTYPES_COLUNAS_SELECIONADAS = {
+DTYPES_COLUNAS_SELECIONADAS: dict[str, str] = {
     'co_paciente': 'category',
     'tp_sexo_paciente': 'category',
     'nu_idade_paciente': 'Int64',
@@ -43,9 +43,15 @@ DTYPES_COLUNAS_SELECIONADAS = {
     'ds_estrategia_vacinacao': 'category'
 }
 
-PARSE_DATES_COLUNAS_SELECIONADAS = ['dt_vacina']
+PARSE_DATES_COLUNAS_SELECIONADAS: list[str] = ['dt_vacina']
 
-SIGLA_MESES = {
+QUERY_INICIAL: str = 'sg_uf_estabelecimento == "SP"'
+
+SUFIXO_PIPELINE_INICIAL: str = 'sp'
+
+ANOS_PIPELINE_INICIAL: list[int] = [2021]
+
+SIGLA_MESES: dict[int, str] = {
     1: 'jan',
     2: 'fev',
     3: 'mar',

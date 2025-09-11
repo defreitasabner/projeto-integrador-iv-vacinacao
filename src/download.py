@@ -9,30 +9,30 @@ from constants import SIGLA_MESES
 
 logger = logging.getLogger(__name__)
 
-def gerar_url_json(mes: int, ano: int = 2020):
+def gerar_url_json(mes: int, ano: int):
     mes_str = SIGLA_MESES.get(mes, 'unknown')
     return f'https://s3.sa-east-1.amazonaws.com/ckan.saude.gov.br/PNI/json/vacinacao_{mes_str}_{ano}.json.zip'
 
-def gerar_url_csv(mes: int, ano: int = 2020):
+def gerar_url_csv(mes: int, ano: int):
     mes_str = SIGLA_MESES.get(mes, 'unknown')
     return f'https://arquivosdadosabertos.saude.gov.br/dados/dbbni/vacinacao_{mes_str}_{ano}.zip'
 
-def baixar_arquivo_zip_datasus(url: str, downloaded_dir: str = DOWNLOADED_DATA_DIR) -> str:
+def baixar_arquivo_zip_datasus(url: str, diretorio_destino: str) -> str:
     nome_arquivo = url.split("/")[-1]
-    caminho_arquivo = os.path.join(downloaded_dir, nome_arquivo)
+    caminho_arquivo = os.path.join(diretorio_destino, nome_arquivo)
     if os.path.exists(caminho_arquivo):
-        logger.info(f'Arquivo {nome_arquivo} já existe em {downloaded_dir}. Ignorando download.')
+        logger.info(f'Arquivo {nome_arquivo} já existe em {diretorio_destino}. Ignorando download.')
         return caminho_arquivo
     else:
-        logger.info(f'Arquivo {nome_arquivo} não encontrado em {downloaded_dir}. Iniciando download...')
+        logger.info(f'Arquivo {nome_arquivo} não encontrado em {diretorio_destino}. Iniciando download...')
         with requests.get(url, stream = True) as response:
             try:
                 response.raise_for_status()
-                logger.info(f'Baixando dados da URL: {url}')
+                logger.info(f'=> Baixando dados da URL: {url}')
                 tamanho_total = int(response.headers.get('content-length', 0))
                 total_baixado = 0
                 ultima_pct_logada = 0
-                with open(os.path.join(downloaded_dir, nome_arquivo), "wb") as file:
+                with open(os.path.join(diretorio_destino, nome_arquivo), "wb") as file:
                     try:
                         for chunk in response.iter_content(chunk_size = 4096):
                             if chunk:
@@ -41,15 +41,15 @@ def baixar_arquivo_zip_datasus(url: str, downloaded_dir: str = DOWNLOADED_DATA_D
                                 if tamanho_total > 0:
                                     pct_baixada = (total_baixado / tamanho_total) * 100
                                     if pct_baixada != 0 and pct_baixada > ultima_pct_logada + TAXA_LOG_DOWNLOAD:
-                                        logger.info(f'Progresso do download: {pct_baixada:.2f}%')
+                                        logger.info(f'- Progresso do download: {pct_baixada:.2f}%')
                                         ultima_pct_logada += TAXA_LOG_DOWNLOAD
                     except Exception as e:
                         logger.error(f'Ocorreu um erro durante o download do arquivo {nome_arquivo}: {e}')
-                        if os.path.exists(os.path.join(downloaded_dir, nome_arquivo)):
+                        if os.path.exists(os.path.join(diretorio_destino, nome_arquivo)):
                             os.remove(caminho_arquivo)
                             logger.info(f'Arquivo {nome_arquivo} removido devido a erro de download.')
                         raise e
                 logger.info(f'Download concluído. Arquivo salvo em: {caminho_arquivo}')
                 return caminho_arquivo
             except requests.HTTPError as http_err:
-                logger.error(f'Erro HTTP ao tentar baixar o arquivo {nome_arquivo}: {http_err}')
+                logger.error(f'Erro HTTP ao tentar baixar o arquivo {nome_arquivo}. Talvez o arquivo não esteja mais disponível nessa URL: {http_err}')
