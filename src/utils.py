@@ -83,6 +83,26 @@ def extrair_arquivo_zip(caminho_arquivo_zip: str, diretorio_destino: str) -> str
         logger.error(f'Erro ao tentar extrair {caminho_arquivo_zip}: {erro}')
         raise erro
 
+def compactar_arquivos(diretorio_origem: str, nome_arquivo_zip: str) -> str:
+    if not os.path.exists(diretorio_origem):
+        raise FileNotFoundError(f'Diretório de origem não encontrado em: {diretorio_origem}')
+    caminho_arquivo_zip = os.path.join(diretorio_origem, nome_arquivo_zip)
+    logger.info(f'Compactando arquivos do diretório {diretorio_origem} em: {caminho_arquivo_zip}')
+    try:
+        with zipfile.ZipFile(caminho_arquivo_zip, 'w', zipfile.ZIP_DEFLATED) as arquivo_zip:
+            for root, _, files in os.walk(diretorio_origem):
+                for file in files:
+                    caminho_completo_arquivo = os.path.join(root, file)
+                    arquivo_zip.write(
+                        caminho_completo_arquivo, 
+                        os.path.relpath(caminho_completo_arquivo, diretorio_origem)
+                    )
+        logger.info(f'Compactação concluída! Arquivo salvo em: {caminho_arquivo_zip}')
+        return caminho_arquivo_zip
+    except Exception as erro:
+        logger.error(f'Erro ao tentar compactar arquivos do diretório {diretorio_origem}: {erro}')
+        raise erro
+
 def remover_arquivo(caminho_arquivo: str):
     if os.path.exists(caminho_arquivo):
         os.remove(caminho_arquivo)

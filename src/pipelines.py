@@ -8,7 +8,7 @@ from constants import ANOS_PIPELINE_INICIAL, COLUNAS_SELECIONADAS, DTYPES_COLUNA
 
 logger = logging.getLogger(__name__)
 
-
+#TODO: encapsular pipeline básica em uma classe
 def baixar_e_processar_dados_aplicando_filtragem_inicial(
     mes: int,
     ano: int,
