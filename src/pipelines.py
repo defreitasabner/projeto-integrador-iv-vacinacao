@@ -4,7 +4,7 @@ from datetime import datetime
 
 import logging
 
-from utils import remover_arquivo, remover_diretorio, salvar_arquivo_processado, zip_to_dataframe
+from utils import remover_arquivo, remover_diretorio, salvar_arquivo_processado, zip_json_to_dataframe, zip_to_dataframe, extrair_arquivo_zip
 from settings import VACINACAO_RAW_DATA_DIR, VACINACAO_PROCESSED_DATA_DIR
 from constants import ANOS_PIPELINE_INICIAL, COLUNAS_SELECIONADAS, DTYPES_COLUNAS_SELECIONADAS, QUERY_INICIAL, PARSE_DATES_COLUNAS_SELECIONADAS, SUFIXO_PIPELINE_INICIAL
 
@@ -21,8 +21,6 @@ def processar_dados_vacinacao_por_ano(
 
     logger.info(f'Iniciando pipeline de dados de vacinação para o ano de {ano} com os seguintes parâmetros:')
     logger.info(f'- Selecionando {len(COLUNAS_SELECIONADAS)} colunas: {", ".join(COLUNAS_SELECIONADAS)}')
-    logger.info(f'- Dtypes das colunas: {", ".join(set(DTYPES_COLUNAS_SELECIONADAS.values()))}')
-    logger.info(f'- Colunas com datas indicadas para conversão: {", ".join(PARSE_DATES_COLUNAS_SELECIONADAS)}')
     logger.info(f'- Filtro pandas aplicado: {QUERY_INICIAL if QUERY_INICIAL else "Nenhum"}')
     logger.info(f'- Sufixo adicionado aos arquivos processados: {SUFIXO_PIPELINE_INICIAL}')
 
@@ -64,16 +62,18 @@ def processar_dados_vacinacao_por_ano(
         nome_arquivo_processado = f'{nome_recurso}_{SUFIXO_PIPELINE_INICIAL}.csv'
 
         if not os.path.exists(os.path.join(diretorio_destino_recurso, nome_arquivo_processado)):
-            logger.info(f'Iniciando processamento do recurso {nome_recurso}')
+            logger.info(f'Iniciando processamento do recurso: {nome_recurso}')
             try:
-                df_dados_processados = zip_to_dataframe(
-                    caminho_arquivo_zip = caminho_arquivo_zip, 
-                    colunas_selecionadas = COLUNAS_SELECIONADAS, 
-                    pandas_query = QUERY_INICIAL,
-                    dtype = DTYPES_COLUNAS_SELECIONADAS,
-                    parse_dates = PARSE_DATES_COLUNAS_SELECIONADAS
+                caminho_dados_brutos_extraidos = extrair_arquivo_zip(
+                    caminho_arquivo_zip = caminho_arquivo_zip
                 )
-                #TODO: Por enquanto está sendo salvo tudo apenas com a filtragem de SP, mas a ideia é seguir a modelagem
+                df_dados_processados = zip_json_to_dataframe(
+                    caminho_dados_brutos_extraidos = caminho_dados_brutos_extraidos,
+                    colunas_selecionadas = COLUNAS_SELECIONADAS,
+                    dtypes_colunas = DTYPES_COLUNAS_SELECIONADAS,
+                    parse_dates_colunas = PARSE_DATES_COLUNAS_SELECIONADAS,
+                    diretorio_destino_tratados = diretorio_destino_recurso
+                )
                 salvar_arquivo_processado(
                     dataframe = df_dados_processados, 
                     nome_arquivo = nome_arquivo_processado, 

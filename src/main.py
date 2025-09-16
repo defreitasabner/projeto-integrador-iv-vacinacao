@@ -36,7 +36,7 @@ def main():
 
     # Upload dos dados processados para o Google Drive
     if google_drive:
-        caminho_dados_processados_compactados = utils.compactar_arquivos(settings.PROCESSED_DATA_DIR, 'dados_vacinacao.zip')
+        caminho_dados_processados_compactados = utils.compactar_arquivos(settings.VACINACAO_PROCESSED_DATA_DIR, 'dados_vacinacao.zip')
         google_drive.upload_arquivo(caminho_dados_processados_compactados)
         utils.remover_arquivo(caminho_dados_processados_compactados)
 

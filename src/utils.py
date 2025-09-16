@@ -1,11 +1,14 @@
 import os
 import logging
 import zipfile
+import io
+import shutil
 
 import pandas as pd
+import polars as pl
 
 from settings import PROCESSED_DATA_DIR
-
+from constants import SCHEMA_JSON_POLAR
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,47 @@ def zip_to_dataframe(
     df = pd.concat(dfs_parciais, ignore_index=True)
     return df
 
+def zip_json_to_dataframe(
+    caminho_dados_brutos_extraidos: str, 
+    colunas_selecionadas: list[str],
+    dtypes_colunas: dict[str, str] = None,
+    parse_dates_colunas: list[str] = None,
+    diretorio_destino_tratados: str = None,
+):
+    if not os.path.exists(caminho_dados_brutos_extraidos):
+        raise FileNotFoundError(f'Diretório de dados brutos extraídos não encontrado: {caminho_dados_brutos_extraidos}')
+    
+    logger.info(f'Gerando Dataframe a partir de: {caminho_dados_brutos_extraidos}')
+
+    TEMP_DIR = os.path.join(diretorio_destino_tratados, 'temp')
+    if not os.path.exists(TEMP_DIR):
+        os.makedirs(TEMP_DIR)
+    try:
+        for nome_arquivo in os.listdir(caminho_dados_brutos_extraidos):
+            caminho_arquivo_json = os.path.join(caminho_dados_brutos_extraidos, nome_arquivo)
+            lf_parcial = pl.read_json(caminho_arquivo_json, schema = SCHEMA_JSON_POLAR).lazy()
+            lf_parcial = lf_parcial.filter(pl.col("sg_uf_estabelecimento") == 'SP')
+            lf_parcial = lf_parcial.select(colunas_selecionadas)
+            lf_parcial.collect().write_parquet(
+                os.path.join(TEMP_DIR, f'{nome_arquivo.replace(".json", "")}.parquet')
+            )
+            # Remove o arquivo JSON depois de processado
+            os.remove(caminho_arquivo_json)
+        df = pd.concat([
+            pd.read_parquet(os.path.join(TEMP_DIR, arquivo)) 
+            for arquivo in os.listdir(TEMP_DIR) 
+            if arquivo.endswith('.parquet')
+        ])
+        df = df.astype(dtypes_colunas)
+        for coluna in parse_dates_colunas:
+            df[coluna] = pd.to_datetime(df[coluna], format = '%Y-%m-%d', errors = 'coerce')
+        return df
+    except Exception as e:
+        logger.error(f'Erro ao processar arquivos JSON em {caminho_dados_brutos_extraidos}: {e}')
+    finally:
+        if os.path.exists(TEMP_DIR):
+            shutil.rmtree(TEMP_DIR)
+
 def salvar_arquivo_processado(
     dataframe: pd.DataFrame,
     nome_arquivo: str, 
@@ -106,15 +150,16 @@ def salvar_arquivo_processado(
         encoding = 'latin-1',
     )
 
-def extrair_arquivo_zip(caminho_arquivo_zip: str, diretorio_destino: str) -> str:
-    logger.info(f'Extraindo arquivo zip: {caminho_arquivo_zip} para {diretorio_destino}')
+def extrair_arquivo_zip(caminho_arquivo_zip: str) -> str:
+    logger.info(f'Extraindo arquivo zip: {caminho_arquivo_zip}')
+    dir_arquivos_extraidos = os.path.join(
+        os.path.dirname(caminho_arquivo_zip),
+        'temp',
+        os.path.basename(caminho_arquivo_zip).replace('.zip', '').replace('.json', '')
+    )
     try:
         with zipfile.ZipFile(caminho_arquivo_zip, 'r') as arquivo_zip:
             qtd_arquivos_extraidos = len(arquivo_zip.namelist())
-            dir_arquivos_extraidos = os.path.join(
-                diretorio_destino, 
-                caminho_arquivo_zip.split(os.sep)[-1].replace('.zip', '').replace('.json', '')
-            )
             if os.path.exists(dir_arquivos_extraidos) and len(os.listdir(dir_arquivos_extraidos)) == qtd_arquivos_extraidos:
                 logger.info(f'Diretório {dir_arquivos_extraidos} já existe. Ignorando extração.')
                 return dir_arquivos_extraidos
@@ -123,6 +168,8 @@ def extrair_arquivo_zip(caminho_arquivo_zip: str, diretorio_destino: str) -> str
             return dir_arquivos_extraidos
     except Exception as erro:
         logger.error(f'Erro ao tentar extrair {caminho_arquivo_zip}: {erro}')
+        if os.path.exists(dir_arquivos_extraidos):
+            shutil.rmtree(dir_arquivos_extraidos)
         raise erro
 
 def compactar_arquivos(diretorio_origem: str, nome_arquivo_zip: str) -> str:
