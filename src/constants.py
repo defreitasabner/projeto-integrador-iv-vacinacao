@@ -1,8 +1,11 @@
-COLUNAS_SELECIONADAS: list[str] = [
+COLUNAS_SELECIONADAS = [
+    'co_documento',
     'co_paciente',
     'tp_sexo_paciente',
     'nu_idade_paciente',
+    'co_raca_cor_paciente',
     'no_raca_cor_paciente',
+    'sg_uf_paciente',
     'co_municipio_paciente',
     'no_municipio_paciente',
     'co_cnes_estabelecimento',
@@ -21,27 +24,11 @@ COLUNAS_SELECIONADAS: list[str] = [
     'ds_estrategia_vacinacao',
 ]
 
-DTYPES_COLUNAS_SELECIONADAS: dict[str, str] = {
-    'co_paciente': 'category',
-    'tp_sexo_paciente': 'category',
-    'nu_idade_paciente': 'Int64',
-    'no_raca_cor_paciente': 'category',
-    'co_municipio_paciente': 'category',
-    'no_municipio_paciente': 'category',
-    'co_cnes_estabelecimento': 'category',
-    'co_municipio_estabelecimento': 'category',
-    'no_municipio_estabelecimento': 'category',
-    'sg_uf_estabelecimento': 'category',
-    'co_vacina': 'category',
-    'sg_vacina': 'category',
-    'ds_vacina': 'category',
-    'co_dose_vacina': 'category',
-    'ds_dose_vacina': 'category',
-    'co_local_aplicacao': 'category',
-    'ds_local_aplicacao': 'category',
-    'co_estrategia_vacinacao': 'category',
-    'ds_estrategia_vacinacao': 'category'
+DTYPES_COLUNAS_SELECIONADAS = { 
+    coluna: 'category' for coluna in COLUNAS_SELECIONADAS 
+        if coluna != 'nu_idade_paciente' and coluna != 'dt_vacina'
 }
+DTYPES_COLUNAS_SELECIONADAS['nu_idade_paciente'] = 'Int64'
 
 PARSE_DATES_COLUNAS_SELECIONADAS: list[str] = ['dt_vacina']
 

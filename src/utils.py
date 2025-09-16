@@ -49,6 +49,48 @@ def obter_dataframe(
     
     return df
 
+def zip_to_dataframe(
+    caminho_arquivo_zip: str, 
+    colunas_selecionadas: list[str] = None,
+    pandas_query: str = None,
+    dtype: dict[str, str] = None,
+    parse_dates: list[str] = None,
+):
+    if not os.path.exists(caminho_arquivo_zip):
+        raise FileNotFoundError(f'Arquivo zip não encontrado em: {caminho_arquivo_zip}')
+    
+    logger.info(f'Gerando Dataframe a partir de: {caminho_arquivo_zip}')
+    
+    df = pd.DataFrame()
+    dfs_parciais = []
+    with zipfile.ZipFile(caminho_arquivo_zip, 'r') as arquivo_zip:
+        for nome_arquivo in arquivo_zip.namelist():
+            with arquivo_zip.open(nome_arquivo, 'r') as arquivo:
+                if nome_arquivo.endswith('.csv'):
+                    df_parcial = pd.read_csv(
+                        arquivo,
+                        usecols= colunas_selecionadas,
+                        dtype= dtype,
+                        parse_dates= parse_dates,
+                        encoding = 'latin-1',
+                        sep= ';'
+                    ).query(pandas_query)
+                elif nome_arquivo.endswith('.json'):
+                    df_parcial = pd.read_json(
+                        arquivo,
+                        convert_dates = parse_dates,
+                        dtype = dtype
+                    )
+                    if pandas_query:
+                        df_parcial = df_parcial.query(pandas_query)
+                    if colunas_selecionadas:
+                        df_parcial = df_parcial[colunas_selecionadas]
+                else:
+                    continue
+                dfs_parciais.append(df_parcial)
+    df = pd.concat(dfs_parciais, ignore_index=True)
+    return df
+
 def salvar_arquivo_processado(
     dataframe: pd.DataFrame,
     nome_arquivo: str, 
