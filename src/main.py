@@ -1,7 +1,5 @@
 import logging
 
-from config import criar_diretorios
-from pipelines import processar_dados_de_sp
 
 logging.basicConfig(
     level = logging.INFO,
@@ -10,9 +8,12 @@ logging.basicConfig(
     #filemode='a'
 )
 
+logger = logging.getLogger(__name__)
+
 def main():
-    criar_diretorios()
-    processar_dados_de_sp('vacinacao_jan_2021.csv')
+    # TODO: implementar CLI para acesso às funcionalidades das pipelines
+    pass
+
 
 if __name__ == '__main__':
     main()
