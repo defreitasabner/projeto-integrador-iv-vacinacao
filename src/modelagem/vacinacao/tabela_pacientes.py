@@ -9,14 +9,14 @@ class TabelaPacientes:
     COLUNAS = ['co_paciente', 'tp_sexo_paciente', 
                'ano_nascimento_paciente', 'co_raca_cor_paciente']
     @staticmethod
-    def pre_processamento(lf: pl.LazyFrame) -> pl.LazyFrame:
+    def pre_processamento(lf: pl.LazyFrame, ano_dados: int) -> pl.LazyFrame:
         """ Realiza o pré-processamento necessário nos dados brutos de vacinação para futuramente gerar a tabela de pacientes. 
         Deve ser chamado durante o processamento dos dados brutos de vacinação."""
         
         return lf\
             .with_columns([
                 pl.col('nu_idade_paciente').map_elements(
-                    lambda idade: datetime.now().year - int(idade) 
+                    lambda idade: ano_dados - int(idade) 
                         if (idade is not None) and (int(idade) >= 0 and int(idade) <= 120) 
                         else None,
                     return_dtype = pl.Int16

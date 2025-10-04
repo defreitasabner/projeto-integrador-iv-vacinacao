@@ -12,10 +12,12 @@ class TabelaVacinas:
 
         df_temp = lf_vacinas.clone().collect()
         agg_descricao_vacina = df_temp.group_by('co_vacina').agg([
-            pl.col('ds_vacina').mode().first().str.to_uppercase().alias('ds_vacina')
+            pl.col('sg_vacina').mode().sort().first().str.to_uppercase().alias('sg_vacina'),
+            pl.col('ds_vacina').mode().sort().first().str.to_uppercase().alias('ds_vacina')
         ])
 
         return lf_vacinas\
+            .drop('sg_vacina')\
             .drop('ds_vacina')\
             .join(
                 on ='co_vacina', 

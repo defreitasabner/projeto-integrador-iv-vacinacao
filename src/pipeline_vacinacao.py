@@ -31,6 +31,7 @@ class PipelineVacinacao:
             *TabelaDoses.COLUNAS
         ]))
 
+    # TODO: Isolar partes importantes em métodos privados e melhorar o fluxo para evitar repetições
     def processar_dados_por_ano(self, ano: int):
         # Garante que os diretórios de dados brutos e processados existam
         os.makedirs(self.DIRETORIO_DADOS_BRUTOS_VACINACAO, exist_ok = True)
@@ -124,7 +125,8 @@ class PipelineVacinacao:
                 logger.info(f'Filtrando e convertendo o arquivo JSON {os.path.basename(caminho_arquivo_json_bruto)} para o formato parquet')
                 self.__filtrar_e_converter_para_parquet(
                     caminho_arquivo_json = caminho_arquivo_json_bruto,
-                    diretorio_destino = DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET
+                    diretorio_destino = DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET,
+                    ano_dados = ano
                 )
                 os.remove(caminho_arquivo_json_bruto)
             logger.info(f'Conversão de JSON para parquet finalizada com sucesso. Arquivos JSON extraídos foram removidos durante o processo.')
@@ -211,12 +213,12 @@ class PipelineVacinacao:
             f'{TabelaDoses.NOME}.parquet' in arquivos_diretorio
         ]) 
 
-    def __filtrar_e_converter_para_parquet(self, caminho_arquivo_json: str, diretorio_destino: str):
+    def __filtrar_e_converter_para_parquet(self, caminho_arquivo_json: str, diretorio_destino: str, ano_dados: int):
         nome_arquivo_parquet = os.path.basename(caminho_arquivo_json).replace('.json', '.parquet')
         pl.read_json(caminho_arquivo_json, schema = SCHEMA_JSON_POLAR)\
             .lazy()\
             .pipe(TabelaMunicipios.pre_processamento)\
-            .pipe(TabelaPacientes.pre_processamento)\
+            .pipe(TabelaPacientes.pre_processamento, ano_dados)\
             .select(self.COLUNAS_SELECIONADAS)\
             .collect()\
             .write_parquet(os.path.join(diretorio_destino, nome_arquivo_parquet))
@@ -241,5 +243,5 @@ if __name__ == "__main__":
         diretorio_dados_brutos_vacinacao = settings.VACINACAO_RAW_DATA_DIR,
         diretorio_dados_processados_vacinacao = settings.VACINACAO_PROCESSED_DATA_DIR
     )
-    pipeline.processar_dados_por_ano(ano = 2021)
-    pipeline.agregar_dados_por_ano(ano = 2021)
+    pipeline.processar_dados_por_ano(ano = 2023)
+    pipeline.agregar_dados_por_ano(ano = 2023)

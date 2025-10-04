@@ -12,11 +12,15 @@ class TabelaEstabelecimentos:
 
         df_temp = lf_estabelecimentos.clone().collect()
         agg_nome_fantasia = df_temp.group_by('co_cnes_estabelecimento').agg([
-            pl.col('no_fantasia_estalecimento').mode().str.join(' / ').alias('no_fantasia_estalecimento')
+            pl.col('no_razao_social_estabelecimento').mode().sort().first().str.to_uppercase().alias('no_razao_social_estabelecimento'),
+            pl.col('no_fantasia_estalecimento').mode().sort().first().str.to_uppercase().alias('no_fantasia_estalecimento'),
+            pl.col('co_tipo_estabelecimento').mode().sort().first().alias('co_tipo_estabelecimento'),
         ])
 
         return lf_estabelecimentos\
             .drop('no_fantasia_estalecimento')\
+            .drop('no_razao_social_estabelecimento')\
+            .drop('co_tipo_estabelecimento')\
             .join(
                 on ='co_cnes_estabelecimento', 
                 other= agg_nome_fantasia.lazy(), 
