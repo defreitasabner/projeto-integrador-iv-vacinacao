@@ -1,8 +1,10 @@
 import os
+import subprocess
 import logging
 import shutil
 import zipfile
 
+import pandas as pd
 import polars as pl
 
 import settings
@@ -64,7 +66,7 @@ class PipelineVacinacao:
             nome_arquivo_zip = os.path.basename(caminho_arquivo_zip)
             DIRETORIO_DADOS_PROCESSADOS_MES = os.path.join(
                 DIRETORIO_DADOS_PROCESSADOS_ANO, 
-                nome_arquivo_zip.replace('.zip', '').replace('.json', '')
+                nome_arquivo_zip.replace('.zip', '').replace('.json', '').replace('.csv', '')
             )
             
             if not os.path.exists(DIRETORIO_DADOS_PROCESSADOS_MES):
@@ -84,8 +86,8 @@ class PipelineVacinacao:
                 if len(os.listdir(DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET)) > 0:
                     parcialmente_processado = False
                     with zipfile.ZipFile(caminho_arquivo_zip, 'r') as arquivo_zip:
-                        arquivos_json_zip = [nome_arquivo for nome_arquivo in arquivo_zip.namelist() if nome_arquivo.endswith('.json')]
-                        if len(os.listdir(DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET)) == len(arquivos_json_zip):
+                        arquivos_a_extrair = [nome_arquivo for nome_arquivo in arquivo_zip.namelist() if nome_arquivo.endswith('.json') or nome_arquivo.endswith('.csv')]
+                        if len(os.listdir(DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET)) == len(arquivos_a_extrair):
                             parcialmente_processado = True
                     if parcialmente_processado:
                         logger.info(f'O diretório temporário de parquets {DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET} já contém todos arquivos parquet. Pulando para a extração das tabelas modeladas.')
@@ -100,7 +102,7 @@ class PipelineVacinacao:
             DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS = os.path.join(
                 os.path.dirname(caminho_arquivo_zip),
                 'temp',
-                nome_arquivo_zip.replace('.zip', '').replace('.json', '')
+                nome_arquivo_zip.replace('.zip', '').replace('.json', '').replace('.csv', '')
             )
             if not os.path.exists(DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS):
                 os.makedirs(DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS)
@@ -112,39 +114,31 @@ class PipelineVacinacao:
                     arquivo_zip.extractall(DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS)
                     logger.info(f'Extração concluída! {len(arquivo_zip.namelist())} arquivo(s) foram extraídos para {DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS}')
             
-            CAMINHOS_ARQUIVOS_JSON_BRUTOS_EXTRAIDOS = [
+            CAMINHOS_ARQUIVOS_BRUTOS_EXTRAIDOS = [
                 os.path.join(DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS, nome_arquivo)
                     for nome_arquivo in os.listdir(DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS)
-                        if nome_arquivo.endswith('.json')
+                        if nome_arquivo.endswith('.json') or nome_arquivo.endswith('.csv')
             ]
             
             logger.info(f'Iniciando a conversão dos arquivos JSON extraídos para o formato parquet')
             if not os.path.exists(DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET):    
                 os.makedirs(DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET)
-            for caminho_arquivo_json_bruto in CAMINHOS_ARQUIVOS_JSON_BRUTOS_EXTRAIDOS:
-                logger.info(f'Filtrando e convertendo o arquivo JSON {os.path.basename(caminho_arquivo_json_bruto)} para o formato parquet')
+            for caminho_arquivo_bruto in CAMINHOS_ARQUIVOS_BRUTOS_EXTRAIDOS:
+                logger.info(f'Filtrando e convertendo o arquivo {os.path.basename(caminho_arquivo_bruto)} para o formato parquet')
                 self.__filtrar_e_converter_para_parquet(
-                    caminho_arquivo_json = caminho_arquivo_json_bruto,
+                    caminho_arquivo = caminho_arquivo_bruto,
                     diretorio_destino = DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET,
                     ano_dados = ano
                 )
-                os.remove(caminho_arquivo_json_bruto)
-            logger.info(f'Conversão de JSON para parquet finalizada com sucesso. Arquivos JSON extraídos foram removidos durante o processo.')
+                os.remove(caminho_arquivo_bruto)
+            logger.info(f'Conversão para parquet finalizada com sucesso. Arquivos extraídos foram removidos durante o processo.')
             shutil.rmtree(DIRETORIO_TEMPORARIO_ARQUIVOS_BRUTOS_EXTRAIDOS)
 
             logger.info(f'Iniciando a extração das tabelas modeladas para o mês: {nome_arquivo_zip}')
-            lf_mes = pl.scan_parquet(os.path.join(DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET, '*.parquet')).lazy()
-            TabelaDocumentos.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaPacientes.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaMunicipios.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaEstabelecimentos.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaVacinas.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaRacasCores.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaTiposEstabelecimentos.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaNaturezasEstabelecimentos.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            TabelaDoses.extrair(lf = lf_mes, diretorio_destino = DIRETORIO_DADOS_PROCESSADOS_MES)
-            logger.info(f'Tabelas modeladas extraídas com sucesso. Removendo arquivos temporários.')
-            shutil.rmtree(DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET)
+            self.__extrair_tabelas_modeladas(
+                diretorio_temporario_parquets = DIRETORIO_TEMPORARIO_ARQUIVOS_PARQUET,
+                diretorio_dados_processados_mes = DIRETORIO_DADOS_PROCESSADOS_MES
+            )
             logger.info(f'Finalizado todo o processamento dos dados presente em: {nome_arquivo_zip}')
         logger.info(f'Finalizado todo o processamento dos dados de vacinação para o ano: {ano}')
 
@@ -199,6 +193,40 @@ class PipelineVacinacao:
 
         logger.info(f'Agregação dos dados processados concluída para o ano: {ano}')
 
+    def agregar_dados_todos_os_anos(self):
+        diretorios_agregados_anos = []
+        for nome_diretorio_ano in os.listdir(self.DIRETORIO_DADOS_PROCESSADOS_VACINACAO):
+            if os.path.isdir(os.path.join(self.DIRETORIO_DADOS_PROCESSADOS_VACINACAO, nome_diretorio_ano)):
+                for subdiretorio in os.listdir(os.path.join(self.DIRETORIO_DADOS_PROCESSADOS_VACINACAO, nome_diretorio_ano)):
+                    if subdiretorio == f'agregado_{nome_diretorio_ano}':
+                        diretorios_agregados_anos.append(os.path.join(self.DIRETORIO_DADOS_PROCESSADOS_VACINACAO, nome_diretorio_ano, subdiretorio))
+        if len(diretorios_agregados_anos) == 0:
+            raise ValueError(f'Nenhum diretório de anos agregados encontrado em: {self.DIRETORIO_DADOS_PROCESSADOS_VACINACAO}')
+        logger.info(f'Iniciando a agregação dos dados processados para todos os anos')
+        for tabela in [
+            TabelaDocumentos,
+            TabelaPacientes,
+            TabelaMunicipios,
+            TabelaEstabelecimentos,
+            TabelaVacinas,
+            TabelaRacasCores,
+            TabelaTiposEstabelecimentos,
+            TabelaNaturezasEstabelecimentos,
+            TabelaDoses
+        ]:
+            logger.info(f'Iniciando a agregação da tabela: {tabela.NOME}')
+            lf_tabela_todos_anos = pl.concat([
+                pl.scan_parquet(os.path.join(diretorio_ano, f'{tabela.NOME}.parquet')).lazy()
+                    for diretorio_ano in diretorios_agregados_anos
+                        if os.path.exists(os.path.join(diretorio_ano, f'{tabela.NOME}.parquet'))
+            ]).lazy()
+            tabela.extrair(
+                lf = lf_tabela_todos_anos, 
+                diretorio_destino = os.path.join(self.DIRETORIO_DADOS_PROCESSADOS_VACINACAO, 'agregado_todos_anos')
+            )
+            logger.info(f'Tabela {tabela.NOME} agregada com sucesso para todos os anos')
+        logger.info(f'Agregação dos dados processados concluída para todos os anos')
+
     def __verificar_existencia_das_tabelas_modeladas(self, diretorio_destino: str):
         arquivos_diretorio = os.listdir(diretorio_destino) if os.path.exists(diretorio_destino) else []
         return all([
@@ -213,15 +241,26 @@ class PipelineVacinacao:
             f'{TabelaDoses.NOME}.parquet' in arquivos_diretorio
         ]) 
 
-    def __filtrar_e_converter_para_parquet(self, caminho_arquivo_json: str, diretorio_destino: str, ano_dados: int):
-        nome_arquivo_parquet = os.path.basename(caminho_arquivo_json).replace('.json', '.parquet')
-        pl.read_json(caminho_arquivo_json, schema = SCHEMA_JSON_POLAR)\
-            .lazy()\
-            .pipe(TabelaMunicipios.pre_processamento)\
-            .pipe(TabelaPacientes.pre_processamento, ano_dados)\
-            .select(self.COLUNAS_SELECIONADAS)\
-            .collect()\
-            .write_parquet(os.path.join(diretorio_destino, nome_arquivo_parquet))
+    def __filtrar_e_converter_para_parquet(self, caminho_arquivo: str, diretorio_destino: str, ano_dados: int):
+        nome_arquivo_parquet = ''
+        lf = pl.LazyFrame()
+        if caminho_arquivo.endswith('.json'):
+            nome_arquivo_parquet = os.path.basename(caminho_arquivo).replace('.json', '.parquet')
+            lf = pl.read_json(caminho_arquivo, schema = SCHEMA_JSON_POLAR).lazy()
+        elif caminho_arquivo.endswith('.csv'):
+            nome_arquivo_parquet = os.path.basename(caminho_arquivo).replace('.csv', '.parquet')
+            caminho_arquivo_utf8 = caminho_arquivo.replace('.csv', '_utf8_temp.csv')
+            subprocess.Popen(
+                ['iconv', '-f', 'latin1', '-t', 'utf8', caminho_arquivo, '-o', caminho_arquivo_utf8],
+            )
+            lf = pl.scan_csv(caminho_arquivo_utf8, separator=';', schema = SCHEMA_JSON_POLAR, encoding='utf8')
+        else:
+            raise ValueError(f'Formato de arquivo não suportado para conversão: {caminho_arquivo}')
+        lf = lf.pipe(TabelaMunicipios.pre_processamento)\
+                .pipe(TabelaPacientes.pre_processamento, ano_dados)\
+                .select(self.COLUNAS_SELECIONADAS)\
+                .collect()\
+                .write_parquet(os.path.join(diretorio_destino, nome_arquivo_parquet))
 
     def __extrair_tabelas_modeladas(self, diretorio_temporario_parquets: str, diretorio_dados_processados_mes: str):
             lf_mes = pl.scan_parquet(os.path.join(diretorio_temporario_parquets, '*.parquet')).lazy()
@@ -243,5 +282,6 @@ if __name__ == "__main__":
         diretorio_dados_brutos_vacinacao = settings.VACINACAO_RAW_DATA_DIR,
         diretorio_dados_processados_vacinacao = settings.VACINACAO_PROCESSED_DATA_DIR
     )
-    pipeline.processar_dados_por_ano(ano = 2023)
-    pipeline.agregar_dados_por_ano(ano = 2023)
+    #pipeline.processar_dados_por_ano(ano = 2023)
+    #pipeline.agregar_dados_por_ano(ano = 2023)
+    pipeline.agregar_dados_todos_os_anos()
